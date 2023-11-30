@@ -1,12 +1,4 @@
-# **NOTE**: This docker file expects to be run in a directory outside of subspace.
-# It also expects two build arguments, the bittensor snapshot directory, and the bittensor
-# snapshot file name.
-
-# This runs typically via the following command:
-# $ docker build -t subspace . --platform linux/x86_64 --build-arg SNAPSHOT_DIR="DIR_NAME" --build-arg SNAPSHOT_FILE="FILENAME.TAR.GZ"  -f subspace/Dockerfile
-
-
-FROM ubuntu:22.04
+FROM ubuntu:22.04 as builder
 
 # This is being set so that no interactive components are allowed when updating.
 ARG DEBIAN_FRONTEND=noninteractive
@@ -18,17 +10,23 @@ RUN apt-get update && apt-get install -y curl build-essential protobuf-compiler 
 
 WORKDIR /subspace
 
-COPY ./scripts ./scripts
-# Install cargo and Rust
+# Copy the source code
+COPY . .
 
-RUN apt-get update && apt-get install -y clang 
+# Install cargo and Rust
 ENV PATH="/root/.cargo/bin:${PATH}"
 RUN ./scripts/install_rust_env.sh
 
-# Copy the source code
-COPY . .
 # Cargo build
-RUN cargo build --release --locked
+RUN  --mount=type=cache,target=/tmp/usr/local/cargo/registry \
+    --mount=type=cache,target=/tmp/home/root/app/target \
+ cargo build --release --locked
 
+FROM ubuntu:22.04
 
+WORKDIR /subspace
 
+COPY --from=builder /subspace/target/release/node-subspace /usr/local/bin/
+COPY --from=builder /subspace/specs/ /subspace/specs/
+
+ENTRYPOINT [ "/usr/local/bin/node-subspace", "--chain", "/subspace/specs/main.json", "--bootnodes", "/ip4/134.209.113.183/tcp/50053/p2p/12D3KooWCLPBiEDt1VTx3GAjUFADJFvshhLALxKqs2JKb7TcrRgM", "/ip4/165.22.186.112/tcp/50097/p2p/12D3KooWFuoHry2F3iBVxEyw6gkwvhkrMseApx2gQwojXqyXxEwK", "/ip4/165.22.186.112/tcp/50090/p2p/12D3KooWHJn5Zq7mUv7UV6EPzZpwveS3ehfixGgYofoSG9w49j25", "/ip4/165.22.186.112/tcp/50106/p2p/12D3KooWGVCPyJ5FHq8Ykee8qwFrEReUbpawLUNQBrUqTajJg9m1", "/ip4/67.207.85.224/tcp/50050/p2p/12D3KooWLs9NPQN9j71DUFRvcSJDpsTiKe4pHEhNWinof44iTFit", "/ip4/134.122.30.80/tcp/50056/p2p/12D3KooWE1LgVN3yqyhwiFko775MHRXGxW1VKM5SvQaG68AhjqCh", "/ip4/167.99.229.96/tcp/50050/p2p/12D3KooWA7XbMiRkMJmHEzNVkDwqjKgignwbRp2BBzGFWDicjia6", "/ip4/165.22.186.112/tcp/50056/p2p/12D3KooWQzbp5QPNVqRTW6A9yYuhQyU5LD15beokxB3U5MsWu37z", "/ip4/68.183.30.114/tcp/50050/p2p/12D3KooW9rTvrbBcaBFZiQHUpNjd9foDz1qzyKZNjxjX1XFRZAPw", "/ip4/67.207.85.224/tcp/50053/p2p/12D3KooWPe8hzEScYMUoo6kZhxMpADuph9UuKsmRrdzVdQcrFqC3" ]
