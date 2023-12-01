@@ -18,9 +18,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 RUN ./scripts/install_rust_env.sh
 
 # Cargo build
-RUN  --mount=type=cache,target=/tmp/usr/local/cargo/registry \
-    --mount=type=cache,target=/tmp/home/root/app/target \
- cargo build --release --locked
+RUN cargo build --release --locked
 
 FROM ubuntu:22.04
 
